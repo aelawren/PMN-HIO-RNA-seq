@@ -1,0 +1,87 @@
+setwd('C:/Users/Anna-Lisa/Desktop/PMN manuscript/')
+#Load packages
+library(magrittr)
+library(dplyr)
+library(here)
+
+
+##generate .csv file with list of genes that are significant in at least one condition
+#combine into one dataframe
+gene_filter <- function(d1, d2, d3,
+                        label1, label2, label3,p = 1){
+  
+  # Get list of genes - Must be significant in at least one sample
+  genes <- NULL
+  
+  for(i in list(d1, d2, d3)){
+    a <- filter(i, padj <= p) %>% 
+      select(symbol)
+    
+    print(paste(nrow(a), 'significant genes'))
+    
+    genes <- rbind(genes, a) %>% 
+      unique()
+  }
+  
+  print(paste(nrow(genes), 'genes significant in at least one sample with p-adj value cutoff at', p))
+  
+  
+  # Get info for each gene from each sample
+  genes1 <- genes
+  
+  for(i in list(d1, d2, d3)){
+    
+    
+    a <- filter(i, symbol %in% genes$symbol) %>% 
+      select(c(symbol, log2FoldChange, padj))
+    
+    genes1 <- left_join(genes1, a, by = 'symbol')
+    
+  }
+  colnames(genes1)[2:7] <- c(paste0(label1,'_log2FoldChange'), paste0(label1, '_padj'),
+                              paste0(label2,'_log2FoldChange'), paste0(label2, '_padj'),
+                              paste0(label3,'_log2FoldChange'), paste0(label3, '_padj')
+  )
+  
+  
+  
+  genes1 <- genes1[,c(1,2,4,6,3,5,7)]
+  return(genes1)
+}
+
+# Load samples
+PMN<-read.csv('diffexpress/PBS+PMNs_over_PBS_diffexpress.csv')
+STM<-read.csv('diffexpress/STM_over_PBS_diffexpress.csv')
+STM_PMN<-read.csv('diffexpress/STM+PMNs_over_PBS_diffexpress.csv')
+
+mut <- gene_filter(PMN, STM, STM_PMN,p = 0.05, 
+                   label1 = 'PMN', label2 = 'STM', label3 = 'STM_PMN')
+head(mut)
+write.csv(mut,file='significant/significant_atleastone_padj.csv')
+
+#Reformat and add samples to new dataframe
+PMN_genes<-NULL
+PMN_genes$symbol<-mut$symbol
+PMN_genes$log2FoldChange<-mut$PMN_log2FoldChange
+PMN_genes<-as.data.frame(PMN_genes)
+PMN_genes$pvalue<-mut$PMN_pvalue
+PMN_genes$injection<-c('PMN')
+
+STM_genes<-NULL
+STM_genes$symbol<-mut$symbol
+STM_genes$log2FoldChange<-mut$STM_log2FoldChange
+STM_genes<-as.data.frame(STM_genes)
+STM_genes$pvalue<-mut$STM_pvalue
+STM_genes$injection<-c('STM')
+
+STM_PMN_genes<-NULL
+STM_PMN_genes$symbol<-mut$symbol
+STM_PMN_genes$log2FoldChange<-mut$STM_PMN_log2FoldChange
+STM_PMN_genes<-as.data.frame(STM_PMN_genes)
+STM_PMN_genes$pvalue<-mut$STM_PMN_pvalue
+STM_PMN_genes$injection<-c('STM+PMN')
+
+
+
+sig_genes<-rbind(PMN_genes,STM_genes,STM_PMN_genes)
+write.csv(sig_genes,'significant/significant_atleastone_padj_reformatted.csv')
