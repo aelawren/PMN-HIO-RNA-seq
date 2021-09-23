@@ -1,0 +1,65 @@
+setwd('C:/Users/Anna-Lisa/Desktop/PMN manuscript/')
+
+#load packages
+library('gprofiler2')
+library('dplyr')
+library(ggplot2)
+
+#load datasets
+#Pathway enrichment with unique gene sets
+files<-list.files("significant/unique genes from all filtered gene sets/")
+files
+
+
+###################################################################
+##perform analysis on up/down regulated genes filtered by p-adj<0.05
+#load datasets
+#
+files<-list.files("significant/padj/")
+files
+#Pathway enrichment in using gprofiler for GO KEGG and Reactome with significant upregulated genes
+for(i in seq(files)){
+  sample<-gsub('_padj.csv','',files[i])
+  input<-read.csv(file=file.path("significant/padj/",files[i]))%>%
+    filter(i,log2FoldChange>0)
+  up.list<-input$symbol
+  x<-gost(query=up.list,organism = 'hsapiens',sources = c('GO:BP','KEGG','REAC'),significant = FALSE,correction_method = 'fdr')
+  result<-x[['result']]
+  mat<-as.matrix(result)
+  plot_list<-gostplot(x,interactive=FALSE,pal = c( `GO:BP` = "#ff9900",  KEGG =
+                                                     "#dd4477", REAC = "#3366cc"))
+  
+  out.dir<-('Results/gprofiler all genes padj/')
+  publish_gostplot(plot_list, filename = paste0(out.dir,sample,'_upregulated','.tiff'))
+  
+  write.csv(mat, file = paste0(out.dir,sample,'_upregulated','.csv'))
+  minus_parent<-result[c(1:13)]
+  minus_parent<-minus_parent[,c(11,1:10,13)]
+  minus_parent_mat<-as.matrix(minus_parent)
+  write.csv(minus_parent_mat,file = paste0(out.dir,sample,'_upregulated_noparent','.csv'))
+  
+  }
+
+#Pathway enrichment in using gprofiler for GO KEGG and Reactome with significant downregulated genes
+for(i in seq(files)){
+  sample<-gsub('_padj.csv','',files[i])
+  input<-read.csv(file=file.path("significant/padj/",files[i]))%>%
+    filter(i,log2FoldChange<0)
+  up.list<-input$symbol
+  x<-gost(query=up.list,organism = 'hsapiens',sources = c('GO:BP','KEGG','REAC'),significant = FALSE,correction_method = 'fdr')
+  result<-x[['result']]
+  mat<-as.matrix(result)
+  rownames(mat)<-mat$term_name
+  plot_list<-gostplot(x,interactive=FALSE,pal = c( `GO:BP` = "#ff9900",  KEGG =
+                                                     "#dd4477", REAC = "#3366cc"))
+  
+  out.dir<-('Results/gprofiler all genes padj/')
+  publish_gostplot(plot_list, filename = paste0(out.dir,sample,'_downregulated','.tiff'))
+  
+  write.csv(mat, file = paste0(out.dir,sample,'_downregulated','.csv'))
+  minus_parent<-result[c(1:13)]
+  minus_parent<-minus_parent[,c(11,1:10,13)]
+  minus_parent_mat<-as.matrix(minus_parent)
+  write.csv(minus_parent_mat,file = paste0(out.dir,sample,'_downregulated_noparent','.csv'))
+  
+  }
