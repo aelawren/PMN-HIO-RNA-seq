@@ -1,0 +1,128 @@
+setwd('c:/Users/Anna-Lisa/Desktop/PMN manuscript/')
+library(ggplot2)
+library(dplyr)
+#Read in pathway data
+PMN<-read.csv('Results/gprofiler all genes padj/PBS+PMNs_over_PBS_upregulated_noparent.csv')
+STM<-read.csv('Results/gprofiler all genes padj/STM_over_PBS_upregulated_noparent.csv')
+STMPMN<-read.csv('Results/gprofiler all genes padj/STM+PMNs_over_PBS_upregulated_noparent.csv')
+
+#collect relevant info for downstream analysis
+PMN1<-NULL
+PMN1$term<-PMN$term_name
+PMN1<-as.data.frame(PMN1)
+PMN1$PMN_ratio<-PMN$recall
+PMN1$PMN_pvalue<-PMN$p_value
+PMN1$source<-PMN$source
+
+STM1<-NULL
+STM1$term<-STM$term_name
+STM1<-as.data.frame(STM1)
+STM1$STM_ratio<-STM$recall
+STM1$STM_pvalue<-STM$p_value
+STM1$source<-STM$source
+
+STMPMN1<-NULL
+STMPMN1$term<-STMPMN$term_name
+STMPMN1<-as.data.frame(STMPMN1)
+STMPMN1$STMPMN_ratio<-STMPMN$recall
+STMPMN1$STMPMN_pvalue<-STMPMN$p_value
+STMPMN1$source<-STMPMN$source
+
+
+#Merge into one dataframe and save
+combined<-merge(PMN1,STM1,all=TRUE)
+combined1<-merge(combined,STMPMN1,all=TRUE)
+combined2<-merge(combined1,SE1,all=TRUE)
+combined3<-merge(combined2,SEPMN1,all=TRUE)
+#combined$ratio_diff<-(combined$unique_ratio/combined$all_ratio)
+combined3<- combined3[!duplicated(combined3$term),]
+combined_reac<-filter(combined3,source=='REAC')
+
+write.csv(combined_reac,'pathway comparison reactome.csv')
+
+#Reformat for plotting
+#Reformat and add samples to new dataframe
+PMN<-NULL
+PMN$term<-combined_reac$term
+PMN$gene_ratio<-combined_reac$PMN_ratio
+PMN<-as.data.frame(PMN)
+PMN$pvalue<-combined_reac$PMN_pvalue
+PMN$injection<-c('PMN')
+
+STM<-NULL
+STM$term<-combined_reac$term
+STM$gene_ratio<-combined_reac$STM_ratio
+STM<-as.data.frame(STM)
+STM$pvalue<-combined_reac$STM_pvalue
+STM$injection<-c('STM')
+
+STMPMN<-NULL
+STMPMN$term<-combined_reac$term
+STMPMN$gene_ratio<-combined_reac$STMPMN_ratio
+STMPMN<-as.data.frame(STMPMN)
+STMPMN$pvalue<-combined_reac$STMPMN_pvalue
+STMPMN$injection<-c('STM+PMN')
+
+
+paths_reformatted<-rbind(PMN,STM,STMPMN)
+write.csv(paths_reformatted,'pathway comparison reactome reformatted.csv')
+paths_reformatted<-read.csv('pathway comparison reactome reformatted.csv')
+#Read pathway list
+path_list<-read.csv('select pathway list all comparisons.csv')
+filtered_paths<-subset(paths_reformatted,paths_reformatted$term%in%path_list$term)
+filtered_paths$log10pvalue<-(-log10(filtered_paths$pvalue))
+#Plot pathways
+plots<-merge(filtered_paths, path_list)
+
+plots$Major_Pathway<-factor(plots$Major_Pathway,levels=c('Immune System','ECM organization','Programmed Cell Death','Signal Transduction','Others'))
+#plots$injection<-factor(plots$injection,levels=c(STM','PBS','STM'))
+
+ggplot(plots)+
+  geom_point(aes(x=gene_ratio,y=reorder(term,gene_ratio),shape=21,size=log10pvalue,fill=injection,color=PMN,alpha=0.25))+
+  scale_x_continuous(limits=c(0,.7),labels=abs)+scale_size_area(limits = c(0,26))+
+  scale_fill_brewer(palette = 'Paired') +scale_color_manual(values=c("gray", 'black'))+
+  facet_grid(rows=vars(Major_Pathway),
+             scale = 'free', space = 'free', labeller = label_wrap_gen(width=10))
+
+
+plots2<-plots
+ggplot(plots2, aes(x=gene_ratio, y=reorder(term,gene_ratio),fill=injection,size=log10pvalue,alpha=0.5)) +
+  geom_point(aes(shape=21, fill=injection,color=PMN))+scale_shape_identity()+
+   scale_fill_manual(values = c('#00B81F','#00A5FF','#F8766D'))+scale_color_manual(values=c("gray", 'black'))+
+  facet_grid(rows=vars(Major_Pathway),
+             scale = 'free', space = 'free', labeller = label_wrap_gen(width=10))
+
+
+###Repeat to make new plots separate immune system from other categories
+immune<-read.csv('select immune system pathways.csv')
+others<-read.csv('select pathway list other categories.csv')
+
+
+#Read pathway list
+filtered_immune<-subset(paths_reformatted,paths_reformatted$term%in%immune$term)
+filtered_immune$log10pvalue<-(-log10(filtered_immune$pvalue))
+#Plot pathways
+plot_immune<-merge(filtered_immune, immune)
+
+
+ggplot(plot_immune, aes(x=gene_ratio, y=reorder(term,gene_ratio),fill=injection,size=log10pvalue,alpha=0.5)) +
+  geom_point(aes(shape=21, fill=injection,color=PMN))+scale_shape_identity()+
+  scale_fill_manual(values = c('#00B81F','#00A5FF'))+scale_color_manual(values=c("gray", 'black'))+
+  facet_grid(rows=vars(Major_Pathway),
+             scale = 'free', space = 'free', labeller = label_wrap_gen(width=10))
+
+#repeat with other categories
+#Read pathway list
+filtered_other<-subset(paths_reformatted,paths_reformatted$term%in%others$term)
+filtered_other$log10pvalue<-(-log10(filtered_other$pvalue))
+#Plot pathways
+plot_other<-merge(filtered_other, others)
+
+plot_other$Major_Pathway<-factor(plot_other$Major_Pathway,levels=c('ECM organization','Programmed Cell Death','Signal Transduction','Others'))
+
+ggplot(plot_other, aes(x=gene_ratio, y=reorder(term,gene_ratio),fill=injection,size=log10pvalue,alpha=0.5)) +
+  geom_point(aes(shape=21, fill=injection,color=PMN))+scale_shape_identity()+
+  scale_fill_manual(values = c('#00B81F','#00A5FF'))+scale_color_manual(values=c("gray", 'black'))+
+  facet_grid(rows=vars(Major_Pathway),
+             scale = 'free', space = 'free', labeller = label_wrap_gen(width=10))
+
