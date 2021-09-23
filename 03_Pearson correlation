@@ -1,0 +1,69 @@
+setwd('C:/Users/Anna-Lisa/Desktop/PMN manuscript/')
+
+library('DESeq2')
+library('gplots')
+library('RColorBrewer')
+library('pheatmap')
+library('factoextra')
+
+######Pearson correlation with PMN controls
+#load normalized count data
+seq_counts<-read.csv('complete-dataset_DESeq2-normalized-counts.csv')
+
+#Take average of rlog processed data for experimental replicates
+PBS<-((seq_counts$PBS_1+seq_counts$PBS_2+seq_counts$PBS_3+seq_counts$PBS_4)/4)
+PMN_ctl<-((seq_counts$PMNs_Only_1+seq_counts$PMNs_Only_2+seq_counts$PMNs_Only_3+seq_counts$PMNs_Only_4)/4)
+PMN_HIO_ctl<-((seq_counts$PMNs_HIOs_Ctrl_1+seq_counts$PMNs_HIOs_Ctrl_2+seq_counts$PMNs_HIOs_Ctrl_3+seq_counts$PMNs_HIOs_Ctrl_4)/4)
+PMN<-((seq_counts$PMNs_PBS_1+seq_counts$PMNs_PBS_2+seq_counts$PMNs_PBS_3+seq_counts$PMNs_PBS_4)/4)
+STM<-((seq_counts$STM_1+seq_counts$STM_2+seq_counts$STM_3+seq_counts$STM_4)/4)
+STM_PMN<-((seq_counts$PMNs_STM_1+seq_counts$PMNs_STM_2+seq_counts$PMNs_STM_3+seq_counts$PMNs_STM_4)/4)
+
+#Add samples to new dataframe
+sample_dist<-NULL
+sample_dist$PBS<-PBS
+sample_dist<-as.data.frame(sample_dist)
+sample_dist$PMN_ctl<-PMN_ctl
+sample_dist$PMN_HIO_ctl<-PMN_HIO_ctl
+sample_dist$PMN<-PMN
+sample_dist$STM<-STM
+sample_dist$STM_PMN<-STM_PMN
+
+#Calculate pearsons correlation
+pearsons<-cor(sample_dist,use = 'everything',method = 'pearson')
+
+#convert to matrix and plot
+sampleDistMatrix<-as.matrix(pearsons)
+colors <- colorRampPalette( (brewer.pal(9, "Blues")) )(255)
+pheatmap(sampleDistMatrix, color = colors)
+
+
+
+##################################################################
+##Pearsons correlation without PMN_only controls
+#load normalized count data
+seq_counts<-read.csv('no_controls_DESeq2-normalized-counts.csv')
+
+#Take average of rlog processed data for experimental replicates
+PBS<-((seq_counts$PBS_1+seq_counts$PBS_2+seq_counts$PBS_3+seq_counts$PBS_4)/4)
+PMN<-((seq_counts$PMNs_PBS_1+seq_counts$PMNs_PBS_2+seq_counts$PMNs_PBS_3+seq_counts$PMNs_PBS_4)/4)
+STM<-((seq_counts$STM_1+seq_counts$STM_2+seq_counts$STM_3+seq_counts$STM_4)/4)
+STM_PMN<-((seq_counts$PMNs_STM_1+seq_counts$PMNs_STM_2+seq_counts$PMNs_STM_3+seq_counts$PMNs_STM_4)/4)
+
+#Add samples to new dataframe
+sample_dist<-NULL
+sample_dist$PBS<-PBS
+sample_dist<-as.data.frame(sample_dist)
+sample_dist$PMN<-PMN
+sample_dist$STM<-STM
+sample_dist$STM_PMN<-STM_PMN
+
+#Calculate pearsons correlation
+pearsons<-cor(sample_dist,use = 'everything',method = 'pearson')
+counts_all<-seq_counts[c(2:9,14:21)]
+pearsons_all<-cor(counts_all, use='everything',method = 'pearson')
+#convert to matrix and plot
+sampleDistMatrix<-as.matrix(pearsons)
+sampleDistMatrix_all<-as.matrix(pearsons_all)
+colors <- colorRampPalette( (brewer.pal(9, "Blues")) )(255)
+pheatmap(sampleDistMatrix, color = colors)
+pheatmap(sampleDistMatrix_all, color = colors)
